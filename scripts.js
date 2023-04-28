@@ -32,8 +32,18 @@ const handleDragOver = (event) => {
 }
 
 
-const handleDragStart = (event) => {}
-const handleDragEnd = (event) => {}
+const handleDragStart = (event) => {
+console.log('dragstart')
+
+let orderID = target.dataset.id
+console.log(orderID)
+
+}
+const handleDragEnd = (event) => {
+
+}
+
+
 const handleHelpToggle = (event) => {
     const { target } = event
     
@@ -75,21 +85,20 @@ const handleAddSubmit = (event) => { // clicking add button to add order
     }
     // below is too add data to createOrderData function then
     //generate html with creatOrderHTMl function
-    const fullOrder = createOrderHtml(createOrderData(data)) 
+    const OrderObject = createOrderData(data)
+    const fullOrder = createOrderHtml(OrderObject) 
     const orderedColumn = document.querySelector('[data-column="ordered"]')
+
+
+    // console.log(data.column)
+       state.orders[OrderObject.id] = OrderObject
+    console.log(state)
+    console.log(fullOrder)
+
 
     if (target === html.add.form)
     orderedColumn.append(fullOrder) //show html order
 
-
-        const OrderObject = createOrderData(data) // object order'
-
-        // Object.keys(OrderObject).length
-        // console.log(Object.keys(OrderObject).length)
-        // let orderID = document.querySelector('.order').dataset.id
-        // const stateOrderObjectLength = Object.keys(state.orders).length
-        // state.orders[orderID] = OrderObject //trying to add order to state object
-        // console.log(state.orders, stateOrderObjectLength)
        
        //reset form
        html.add.form.reset()
@@ -103,74 +112,79 @@ const handleEditToggle = (event) => { // click actual order and cancel on edit o
     const editOverlay = html.edit.overlay
 editOverlay.style.display = 'block'
 
-
-    // let editTitle = html.edit.title.value
-//     let editTable = html.edit.table
-
-//    editTable = html.add.title.value
-//    editTable = html.add.table.value
-// html.edit.title.value = target.dataset.title 
-// html.edit.table.value = target.dataset.table
-
-// console.log(html.edit.title.value, html.edit.table.value )
-
-const editTitle = document.querySelector('[data-order-title]').innerHTML
-const editTable = document.querySelector('[data-order-table]').innerHTML
-
-html.edit.title.value = editTitle
-html.edit.table.value = editTable
-
-
-
-  if (target === html.edit.cancel) { //cancel edit
+if (target === html.edit.cancel) { //cancel edit
      editOverlay.style.display = 'none'
-     console.log("clicked edit cancel")
  }
-    
-    
+let orderID = target.dataset.id
+// console.log(orderID)
+
+
+html.edit.title.value = state.orders[orderID].title //uncaught type error
+html.edit.table.value = state.orders[orderID].table
+
 }
+
+
 const handleEditSubmit = (event) => { // submit the edited form
     event.preventDefault()
     const {target} = event
     
+    let order = document.querySelector(".order")
+    let orderDivId =order.dataset.id // get the data-id
 
-   
-    const editedData = {
+const newCol = document.querySelector("[data-edit-column]").value // to get the new column value from input (ordered, preparing, served )
+
+
+    const updatedData = { 
+        id: orderDivId,
         title: html.edit.title.value,
-        table:html.edit.table.value,
-        column: html.columns.ordered
-    
+        table: html.edit.table.value,
+        created: state.orders[orderDivId].created
     }
 
-    const editedFullOrder = createOrderHtml(createOrderData(editedData))
-    const orderedColumn = html.edit.column.value
 
-    // if (target === html.edit.form)
-    // orderedColumn.append(editedFullOrder)
-        console.log(orderedColumn)
-        console.log(editedFullOrder)
+    let newColumn= html.columns[newCol]
+    state.orders[orderDivId].title = updatedData.title // change the title to the edited one
+    state.orders[orderDivId].table = updatedData.table // change the table to the edited one
+    state.orders[orderDivId].column = newColumn // change the data column to the edited one
 
-console.log(handleAddSubmit())
+    // const orderElement = document.querySelector(`[data-id="${orderDivId}"]`)
+    // orderElement.querySelector('[data-order-title]').innerText = updatedData.title
+    // orderElement.querySelector('[data-order-table]').innerText = updatedData.table
+    // orderElement.querySelector('[da]') = newColumn
+
+    // console.log(updatedData)
+    const newHtmlOrder = createOrderHtml(updatedData) // create HTML whihch I will append to specified column
+
+    let removediv = document.querySelector(`[data-id="${orderDivId}"]`) //find the order div that needs to be removed using the data it 
+
+
+    if (target === html.edit.form){ // when you click on update button it will remove that order div and put it in the new column
+        removediv.remove()
+    newColumn.append(newHtmlOrder)
+    }
+    
+
+    html.edit.overlay.style.display = 'none' // once done the overlay will disappear
+
 
 }
+
+
 const handleDelete = (event) => { //delete order
+    const { target } = event
 
+     let order = document.querySelector(".order")
+    let orderDivId =order.dataset.id// target.dataset.id
+    let removediv = document.querySelector(`[data-id="${order.dataset.id}"]`)
+   
+//    delete state.orders[orderDivId] 
+    removediv.remove()
     console.log(state)
-    
-    // inputEditFormValue = html.add.title.value 
-    // selectEditTableValue = html.add.table.value
 
-    // const editedData = {
-    //     title: inputEditFormValue,
-    //     table: selectEditTableValue,
-    //     column: html.columns.ordered
-    
-    // }
+    html.edit.overlay.style.display = "none"
 
-    // const editedFullOrder = createOrderHtml(createOrderData(editedData))
 
-    // console.log(editedFullOrder)
-    // document.getElementById(id)
 }
 
 html.add.cancel.addEventListener('click', handleAddToggle)
