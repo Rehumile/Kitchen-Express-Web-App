@@ -1,6 +1,6 @@
 
     import { createOrderHtml, html, updateDraggingHtml, moveToColumn } from './view.js'
-    import { createOrderData, state } from './data.js';
+    import { createOrderData, state, updateDragging } from './data.js';
 
 /**
  * A handler that fires when a user drags over any element inside a column. In
@@ -27,23 +27,42 @@ const handleDragOver = (event) => {
     }
 
     if (!column) return
-    updateDraggingHtml({ over: column })
+    updateDragging({ over: column })
     updateDraggingHtml({ over: column })
 }
 
-
+let dragId = null
+/**
+ * An event that fires when the dragging of order starts. The state object literal will update the dragging.source to the Id of order being dragged
+ * @param {Event} event 
+ */
 const handleDragStart = (event) => {
-console.log('dragstart')
+    const {target} = event
+    dragId = target.dataset.id
 
-let orderID = target.dataset.id
-console.log(orderID)
+    state.dragging.source = dragId
+
 
 }
+/**
+ * An event that fires when the dragging of the order stops. The order will be moved to the column chosen by user and the property values in the state.dragging object will be reset to null and the dragging hover effects will be removed.
+ * @param {Event} event 
+ */
 const handleDragEnd = (event) => {
+    moveToColumn(dragId, state.dragging.over)
+
+    dragId= null
+    state.dragging.source = null
+    state.dragging.over = null
+
+    updateDraggingHtml({over:null})
 
 }
 
-
+/**
+ * A handler that fires when users click on the help button. Overlay will appear explaining information about web app and the cancel button will remove the overlay
+ * @param {event} event 
+ */
 const handleHelpToggle = (event) => {
     const { target } = event
     
@@ -54,7 +73,10 @@ helpOverlay.style.display = 'block'
         helpOverlay.style.display = 'none';
       }
    
-}
+} /**
+ * A handler that fires when the "add order" button is clicked. The "add-order" form overlay will appear for user to enter data. If cancel button is clicked, overlay will be removed with no changes made
+ * @param {Event} event 
+ */
 const handleAddToggle = (event) => { // clicking add order button
     const { target } = event
     
@@ -66,135 +88,148 @@ const handleAddToggle = (event) => { // clicking add order button
     } else if (target === html.add.cancel) {
         addOverlay.style.display = 'none'
         console.log("clicked cancel")
+        html.other.add.focus()
     }
     
 }
-
+/**
+ * A handler that fires when the "add button" in the "add order" form is clicked. Once submitted, overlay will be removed and order will be placed in the "ordered" column. Form will be reset after
+ * @param {Event} event 
+ */
 
 const handleAddSubmit = (event) => { // clicking add button to add order
     event.preventDefault()
     const { target } = event
     let addOverlay = html.add.overlay
     addOverlay.style.display = 'none'
-        
-    const data = {
-        title: html.add.title.value,
-        table: html.add.table.value,
-        column: html.columns.ordered
-    
-    }
-    // below is too add data to createOrderData function then
-    //generate html with creatOrderHTMl function
-    const OrderObject = createOrderData(data)
-    const fullOrder = createOrderHtml(OrderObject) 
+
+    const formData = new FormData(event.target)
+    const inputData = Object.fromEntries(formData)
+
+    const orderObject = createOrderData(event.target)
+
+    orderObject.title = inputData.title
+    orderObject.table = inputData.table
+
+    orderObject.column = 'ordered'
+    state.orders[orderObject.id] = orderObject
+   
+
+    const fullOrderHtml = createOrderHtml(orderObject) 
+
     const orderedColumn = document.querySelector('[data-column="ordered"]')
 
 
-    // console.log(data.column)
-       state.orders[OrderObject.id] = OrderObject
-    console.log(state)
-    console.log(fullOrder)
+        if (target === html.add.form) {
+    orderedColumn.appendChild(fullOrderHtml)
+   
+        }
 
-
-    if (target === html.add.form)
-    orderedColumn.append(fullOrder) //show html order
-
-       
-       //reset form
+        //reset form
        html.add.form.reset()
-
+       html.other.add.focus()
+   
         
 }
 
-
+let editId = null
+/**
+ * This event fires when user clicks on an order. The "edit" form overlay will appear allowing  user to change the input. If cancel button is clicked, overlay will be removed with no changes made. The form will already be populated with data according to the order that was clicked
+ * @param {Event} event 
+ */
 const handleEditToggle = (event) => { // click actual order and cancel on edit overlay
+
+    
     const { target } = event
+
     const editOverlay = html.edit.overlay
 editOverlay.style.display = 'block'
 
 if (target === html.edit.cancel) { //cancel edit
      editOverlay.style.display = 'none'
+     html.edit.form.reset()
+     html.other.add.focus()
  }
-let orderID = target.dataset.id
-// console.log(orderID)
 
+editId = target.dataset.id
 
-html.edit.title.value = state.orders[orderID].title //uncaught type error
-html.edit.table.value = state.orders[orderID].table
+// pre-populates edit form with user input according to the order that was clicked on
+html.edit.title.value = state.orders[editId].title 
+html.edit.table.value = state.orders[editId].table
 
 }
+/**
+ * An event that fires when user click on "update" button in edit overlay. Data will be changed according to user's input
+ * @param {Event} event 
+ */
 
 
 const handleEditSubmit = (event) => { // submit the edited form
+
+    html.edit.overlay.style.display = 'none'
     event.preventDefault()
-    const {target} = event
-    
-    let order = document.querySelector(".order")
-    let orderDivId =order.dataset.id // get the data-id
+ 
 
-const newCol = document.querySelector("[data-edit-column]").value // to get the new column value from input (ordered, preparing, served )
+    const formData = new FormData(event.target)
+    const inputData = Object.fromEntries(formData)
+   
+    const editedObject = state.orders[editId]
 
+    // updates state object literal with new data
+   editedObject.title =inputData.title
+    editedObject.table = inputData.table
+    editedObject.column = inputData.column
 
-    const updatedData = { 
-        id: orderDivId,
-        title: html.edit.title.value,
-        table: html.edit.table.value,
-        created: state.orders[orderDivId].created
-    }
+    const editedHtml = createOrderHtml(editedObject)
 
+    const NewDataColumn = (document.querySelector(`[data-id="${editId}"]`)).closest('[data-column]') // where the edited data will be placed
+    const previousHtmlData = (document.querySelector(`[data-id="${editId}"]`))
 
-    let newColumn= html.columns[newCol]
-    state.orders[orderDivId].title = updatedData.title // change the title to the edited one
-    state.orders[orderDivId].table = updatedData.table // change the table to the edited one
-    state.orders[orderDivId].column = newColumn // change the data column to the edited one
-
-    // const orderElement = document.querySelector(`[data-id="${orderDivId}"]`)
-    // orderElement.querySelector('[data-order-title]').innerText = updatedData.title
-    // orderElement.querySelector('[data-order-table]').innerText = updatedData.table
-    // orderElement.querySelector('[da]') = newColumn
-
-    // console.log(updatedData)
-    const newHtmlOrder = createOrderHtml(updatedData) // create HTML whihch I will append to specified column
-
-    let removediv = document.querySelector(`[data-id="${orderDivId}"]`) //find the order div that needs to be removed using the data it 
+    // removes previous data and add newly edited data
+    NewDataColumn.replaceChild(editedHtml, previousHtmlData)
+  
 
 
-    if (target === html.edit.form){ // when you click on update button it will remove that order div and put it in the new column
-        removediv.remove()
-    newColumn.append(newHtmlOrder)
-    }
-    
+    // moves to specified column
+    moveToColumn(editId, editedObject.column)
+ 
 
-    html.edit.overlay.style.display = 'none' // once done the overlay will disappear
+    // reset form and focus on "Add order" button
+    html.edit.form.reset()
+    html.other.add.focus()
 
 
 }
-
+/**
+ * An event that fires when a user clicks on "delete" button in the "edit" overlay form. Once clicked, overlay will be removed and order will no be display anymore
+ * @param {Event} event 
+ */
 
 const handleDelete = (event) => { //delete order
     const { target } = event
 
-     let order = document.querySelector(".order")
-    let orderDivId =order.dataset.id// target.dataset.id
-    let removediv = document.querySelector(`[data-id="${order.dataset.id}"]`)
-   
-//    delete state.orders[orderDivId] 
-    removediv.remove()
-    console.log(state)
+     html.edit.overlay.style.display = "none"
 
-    html.edit.overlay.style.display = "none"
+     let removediv = document.querySelector(`[data-id="${editId}"]`)
+
+     
+     removediv.remove()
+     delete state.orders[editId] 
 
 
+     //reset form
+     html.edit.form.reset()
+    
 }
 
 html.add.cancel.addEventListener('click', handleAddToggle)
 html.other.add.addEventListener('click', handleAddToggle)
 html.add.form.addEventListener('submit', handleAddSubmit)
 
-html.other.grid.addEventListener('click', handleEditToggle) // clicking the atual order
-html.edit.cancel.addEventListener('click', handleEditToggle) //cancel button
-html.edit.form.addEventListener('submit', handleEditSubmit) // submit button
-html.edit.delete.addEventListener('click', handleDelete) //delete 
+html.other.grid.addEventListener('click', handleEditToggle)
+html.edit.cancel.addEventListener('click', handleEditToggle) 
+html.edit.form.addEventListener('submit', handleEditSubmit) 
+html.edit.delete.addEventListener('click', handleDelete) 
 
 html.help.cancel.addEventListener('click', handleHelpToggle)
 html.other.help.addEventListener('click', handleHelpToggle)
